@@ -1,0 +1,57 @@
+matrix:
+  include:
+  - language: go
+    sudo: required
+    services:
+      - docker
+    script:
+      - export GO111MODULE=on
+      - go mod vendor
+      - make build
+      - test -f bin/linux_amd64/blog_backend
+      - make all-container
+      - docker images | grep "^martinheinz/blog_backend.*__linux_amd64"
+      - make test
+
+  - language: go
+    addons:
+      sonarcloud:
+        organization: martinheinz-github
+        token:
+          secure: "hbGHoYneczpzXmgBLoSKDNEXH7Gv2FVI7LGyHGXdUq3qdaJfRPzDcnMneBNwOl9/5tYYtbtx5uL9xuMa7VFzvosFhiszb8zEpPEAhUQ7jUYS/6Zchvsb5GgGhb8kk2Zud4UpoRbNr8iaqU6LCbxjMGx/SJkvyqMsMjX5zudMuV3OwRlX7JbsLrENdcb6S0PJAMknNRNEZoVjJ8uuJ0MPFb8fns19CnkiBylY64fUPzdiEh7CRSaxI5CbsNxTRZl4gjEPf3orlnHrMG/HhxOZ2PcCaLpW7+aZjQUd0RTYyOmX4u330tzQyCmTCFlG3Kl/XcDSGGBIGYcTzMAStfZ84NByV3e3jKEXesaXSfsCGZZqFbOtqWAEA60bBRyZFjkNIUUH1+uH3EcKaiQNPdbn46M7gnW4nwHlI7gpkCL2oDMJpHh7DcBDDc0ZtzSrN7lUzYO6M+i+8Xf4O/xnwmNJH0NHXZ9dCnQCfzlLLoFtXkflmMpu7apLiLKD6fdcQbatbu189sAiDJwxx4ehTI+zKCYfyf+exu/T8DaZtzctNh4fZ1NbXkhBFPlVf+++PXXiAWlK7nN6lhe15LAS50ZSmP2rjjScQKoh6F1WrROreguWNZdOlG58FH2Cxno7xb3h0yoGVRfA6hhlw5GQv62Lk3ykzzzfSWywEkHt6nnNPsc="
+    before_script:
+    - ./reports.sh
+    - export GO111MODULE=on
+    - go mod vendor
+    - make ci
+    script:
+    - sonar-scanner
+
+  - language: go
+    before_script:
+    - ./reports.sh
+    - curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
+    - chmod +x ./cc-test-reporter
+    - ./cc-test-reporter before-build
+
+    script:
+    - export GO111MODULE=on
+    - go mod vendor
+    - make ci
+
+    after_script:
+    - ./cc-test-reporter after-build -t gocov --exit-code $TRAVIS_TEST_RESULT
+
+  - language: go
+    services:
+      - docker
+    if: branch = master
+    script:
+      - export GO111MODULE=on
+      - go mod vendor
+      - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+      - make container
+      - make push
+
+notifications:
+  email: false
